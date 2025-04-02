@@ -1,54 +1,80 @@
-"use client";
+'use client';
+import { useEffect, useState, useCallback } from 'react';
+import { AnimatePresence, motion } from "motion/react"
+import Image from 'next/image';
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import data from "@/lib/data";
-
-export default function Stream() {
+export default function StreamPage() {
+  const [images, setImages] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isVisible, setIsVisible] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fadeInterval = setInterval(() => {
-      // Start fade out
-      setIsVisible(false);
-      
-      // After fade out, change image and fade in
-      setTimeout(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % data.length);
-        setIsVisible(true);
-      }, 500); // Half a second for fade out
-      
-    }, 3000); // Change every 3 seconds
+    async function fetchImages() {
+      try {
+        const imageData = await fetch('/api/stream');
+        const data = await imageData.json();
+        setImages(data);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching images:', error);
+        setLoading(false);
+      }
+    }
 
-    return () => clearInterval(fadeInterval);
+    fetchImages();
   }, []);
 
-  const currentLogo = data[currentIndex];
+  const nextImage = useCallback(() => {
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+  }, [images.length]);
+
+
+  // Auto-cycling effect
+  useEffect(() => {
+    if (loading || images.length === 0) return;
+    
+    const timer = setTimeout(() => {
+      nextImage();
+    }, 3000); // Total transition time: 1s fade in, 1s display, 1s fade out
+    
+    return () => clearTimeout(timer);
+  }, [currentIndex, loading, images.length, nextImage]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen p-4">
-      <h1 className="text-4xl font-bold mb-4">Boykot et!</h1>
-      <p className="text-zinc-500 text-sm mb-16">Demokrasi için boykot et!</p>
-      
-      <div className="flex flex-col items-center justify-center">
-        <div 
-          className={`transition-opacity duration-500 ease-in-out ${
-            isVisible ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <div className="flex flex-col items-center justify-center">
-            <Image 
-              className="size-64 mb-6" 
-              src={currentLogo.image} 
-              alt={currentLogo.alt} 
-              width={512} 
-              height={512} 
-            />
-            <p className="text-xl font-medium">{currentLogo.name}</p>
+    <div className="flex-1 flex flex-col items-center justify-center min-h-screen p-4">
+      {loading ? (
+        <div className="text-xl">Resimler yükleniyor...</div>
+      ) : images.length === 0 ? (
+        <div className="text-xl">Resim bulunamadı.</div>
+      ) : (
+        <>
+          <div className="relative w-full max-w-2xl h-[60vh] overflow-hidden rounded-xl">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentIndex}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{
+                  opacity: { duration: 1 },
+                }}
+                className="absolute w-full h-full"
+              >
+                <Image
+                  src={`https://boykotyap.net${images[currentIndex]}`}
+                  alt={`Image ${currentIndex + 1}`}
+                  width={512} height={512}
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
-        </div>
-      </div>
+          
+          
+          
+         
+        </>
+      )}
     </div>
   );
 }
