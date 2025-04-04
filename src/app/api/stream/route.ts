@@ -1,4 +1,4 @@
-import getData from "@/lib/data";
+import { getData } from "@/lib/data";
 import { NextResponse } from "next/server";
 
 export async function GET() {
